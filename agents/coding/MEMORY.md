@@ -1,16 +1,20 @@
-# MEMORY.md — 研发部长期记忆
+# IGP 集团编码规范 — 长期记忆
 
-## 技术栈
-- 前端: TypeScript / React / Next.js / Tailwind CSS
-- 后端: Python 3.14 (stdlib only)
-- 工具链: pnpm / Docker / Git
+## 架构决策
+- 后端：TypeScript + Node.js 20
+- 包管理：pnpm（禁用 npm/yarn）
+- 数据库：PostgreSQL + Prisma ORM
+- 部署：Docker + 阿里云 ECS
+- 缓存：Redis (upstash)
 
-## 代码规范
-- 所有 open() 必须带 encoding='utf-8'
-- 不用 inline -c 跑 Python（PowerShell 吃引号）
-- ast.Str 在 3.14 已移除，用 ast.Constant
-- subprocess.run 要加 encoding='utf-8', errors='replace'
+## 编码偏好
+- 禁止用 `any` 类型，优先用泛型
+- 函数式编程优先，避免 class 副作用
+- Git 提交遵循 Conventional Commits
+- 代码格式化用 Prettier + ESLint
 
-## 集团设置
-- 主模型: deepseek/deepseek-v4-flash
-- 工作区: ~/.openclaw/workspace-coding
+## 历史坑
+- 2026-06-15: Docker 镜像构建失败因 pnpm lockfile 未同步
+- 2026-06-20: GitHub Action 超时因 DeepSeek API 限流
+- 2026-06-25: open() 必须加 encoding='utf-8'，Windows GBK 崩溃
+- 2026-06-30: 永远不用 inline Python -c，PowerShell 吃引号

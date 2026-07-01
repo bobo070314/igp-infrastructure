@@ -1,0 +1,106 @@
+// IGP 国际集团 — v0.3.0 档案馆 + 共享服务中心 (Memory + MCP)
+// 基于 OpenClaw 真实 schema (verified 2026-07-01)
+//
+// 本文件仅包含第三层新增字段。
+// 合并方式: 将以下字段追加到 config/openclaw.json5 已有内容中。
+//
+// 重要:
+// - agents.defaults.memorySearch 没有 path/vectorStore/provider 之外的额外字段
+// - agents.list[] 不支持 memorySearch.path 子字段（需用 extraPaths）
+// - mcp.servers 根级别，transport 用 stdio/http 而非 sse
+
+{
+  // ====================================================================
+  // 档案馆 — Memory Search
+  // OpenClaw 真实路径: agents.defaults.memorySearch
+  // 文档: docs/openclaw/docs/reference/memory-config.md
+  //
+  // 注意:
+  // ❌ agents.defaults.memorySearch.path — 不存在
+  // ❌ agents.defaults.memorySearch.vectorStore — 不存在
+  // ✅ agents.defaults.memorySearch.provider — embedding 提供商
+  // ✅ agents.defaults.memorySearch.extraPaths — 额外索引路径
+  // ✅ agents.defaults.memorySearch.sources — 搜索源
+  // ✅ memory.backend — QMD 后端开关
+  // ====================================================================
+  memory: {
+    // 使用内置 SQLite 记忆引擎（默认），或设 "qmd" 启用 QMD 侧车
+    // 当前: 不设 backend，使用内置 FTS5 + sqlite-vec（默认）
+    citations: "auto",  // Source: 路径引用
+  },
+
+  agents: {
+    defaults: {
+      // Memory Search — 记忆检索配置
+      // (在已有 model/tools/costLimit 基础上追加)
+      memorySearch: {
+        enabled: true,
+        // provider: 不设 -> 默认使用 FTS-only（不开向量 embedding，零成本）
+        // 如果后续需要向量检索，设 "openai" 并配置 apiKey
+        // provider: "none"  // 明确 FTS-only 模式
+
+        // 额外记忆路径（除了默认 MEMORY.md + memory/ 目录）
+        extraPaths: [
+          "./agents/shared/memory",   // 集团共享记忆库
+        ],
+
+        // 搜索源: memory 文件 + sessions（可选实验功能）
+        sources: ["memory"],
+        // sources: ["memory", "sessions"],  // 如果启用会话索引
+
+        // 混合搜索调优
+        query: {
+          hybrid: {
+            enabled: true,
+            vectorWeight: 0.7,
+            textWeight: 0.3,
+          },
+        },
+      },
+    },
+
+    // agents.list 保留 v0.2.0 内容，不做修改
+    // 子 Agent 专属记忆通过 workspace 下的 MEMORY.md 自动索引
+  },
+
+  // ====================================================================
+  // 共享服务中心 — MCP Servers
+  // OpenClaw 真实路径: 根级别 mcp.servers
+  // 文档: docs/openclaw/docs/gateway/configuration-reference.md
+  //
+  // 注意:
+  // ❌ mcpServers 根级别 — 不存在
+  // ✅ mcp.servers 根级别 — 真实字段
+  // ✅ transport: stdio（本地）/ http（远程）
+  // ✅ mcp.servers.<name>.url — MCP SSE endpoint URL
+  // ====================================================================
+  mcp: {
+    servers: {
+      // 1. 文件系统工具 — 本地 stdio
+      filesystem: {
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-filesystem", "./agents/shared/workspace"],
+      },
+
+      // 2. MetaMCP 聚合 — HTTP 远程
+      metamcp: {
+        transport: "http",
+        url: "http://localhost:12008/sse",
+        headers: {
+          Authorization: "Bearer ${METAMCP_API_KEY}",
+        },
+      },
+
+      // 3. GitHub — 本地 stdio（可选，不走 MetaMCP 时直接连）
+      github: {
+        transport: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-github"],
+        env: {
+          GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}",
+        },
+      },
+    },
+  },
+}
