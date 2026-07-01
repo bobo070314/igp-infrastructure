@@ -1,0 +1,185 @@
+// IGP 国际集团 — Gateway 控制平面配置文件
+// 基于 OpenClaw 真实 schema (docs verified 2026-07-01)
+//
+// 注意: OpenClaw 严格校验 schema，无效字段导致 Gateway 拒绝启动
+// 所有字段均来自: docs/openclaw/docs/gateway/configuration-reference.md
+
+{
+  // ====================================================================
+  // Gateway 基础设置
+  // ====================================================================
+  gateway: {
+    // 端口 18791 = 国际版（国内版 18789）
+    // port: 18791,  // OpenClaw 在 --port 参数设置，不在配置里
+    // bind: "127.0.0.1",  // 默认就是 127.0.0.1，无需显式设
+  },
+
+  // ====================================================================
+  // Agent 配置
+  // ====================================================================
+  agents: {
+    defaults: {
+      // 默认工作区
+      workspace: "~/.openclaw/workspace",
+
+      // 模型配置
+      // 主模型 + fallback 链
+      // 格局: deepseek/deepseek-v4-flash 是主力
+      //       deepseek/deepseek-v3 是深度思考兜底
+      model: {
+        primary: "deepseek/deepseek-v4-flash",
+        fallbacks: [
+          "deepseek/deepseek-v3",
+          // 第三级: 1分钟后重试 v4-flash（OpenClaw自动重试次数可配）
+        ],
+      },
+
+      // 模型目录（也是 /model 白名单）
+      models: {
+        "deepseek/deepseek-v4-flash": { alias: "Flash" },
+        "deepseek/deepseek-v3":       { alias: "DeepThink" },
+      },
+
+      // Tool 执行安全 — Shell 白名单
+      // 对应外部建议的 allowlist.json
+      tools: {
+        exec: {
+          allow: [
+            // 文件操作
+            { match: { command: "ls" } },
+            { match: { command: "cat" } },
+            { match: { command: "head" } },
+            { match: { command: "tail" } },
+            // Git 只读
+            { match: { command: "git", args: ["status", "diff", "log", "show"] } },
+            // 包管理
+            { match: { command: "pnpm", args: ["install", "run", "build", "test"] } },
+            // 调试
+            { match: { command: "curl" } },
+            { match: { command: "python" } },
+            // Docker 只读
+            { match: { command: "docker", args: ["ps", "logs", "images"] } },
+            // 文件编辑 — 需要确认
+            { match: { command: "write" }, requireApproval: true },
+          ],
+        },
+      },
+
+      // 成本熔断 — 对应外部建议的 cost-limits.json
+      // 注意: OpenClaw 的 costLimit 在 agent 级别
+      costLimit: {
+        daily: 10,        // 每日 $10
+        perRequest: 0.5,  // 单次 $0.5
+      },
+    },
+
+    // ====================================================================
+    // 子公司（Multi-Agent 路由）
+    // ====================================================================
+    list: [
+      {
+        id: "coding",
+        name: "研发部",
+        default: true,
+        workspace: "~/.openclaw/workspace-coding",
+        // 研发部用主力模型 v4-flash
+      },
+      {
+        id: "research",
+        name: "情报部",
+        workspace: "~/.openclaw/workspace-research",
+        // 情报部用深度模型 v3
+        model: {
+          primary: "deepseek/deepseek-v3",
+          fallbacks: ["deepseek/deepseek-v4-flash"],
+        },
+        // 情报部需要更多工具
+        tools: {
+          exec: {
+            allow: [
+              { match: { command: "python" } },
+              { match: { command: "curl" } },
+              { match: { command: "git", args: ["*"] } },  // 全 git 权限
+            ],
+          },
+        },
+      },
+      {
+        id: "ops",
+        name: "运维部",
+        workspace: "~/.openclaw/workspace-ops",
+        // 运维部成本上限更高
+        costLimit: { daily: 5, perRequest: 0.3 },
+      },
+      {
+        id: "exec",
+        name: "行政部",
+        workspace: "~/.openclaw/workspace-exec",
+        // 行政部成本低，轻模型
+        model: {
+          primary: "deepseek/deepseek-v4-flash",
+        },
+        costLimit: { daily: 2, perRequest: 0.1 },
+      },
+    ],
+  },
+
+  // ====================================================================
+  // Bindings — 路由规则
+  // ====================================================================
+  bindings: [
+    // Telegram 研发群 → coding Agent
+    {
+      agentId: "coding",
+      match: {
+        channel: "telegram",
+        // TODO: 填入 Telegram coding 群 ID
+        // 例如: chat: "-1001234567890"
+      },
+    },
+    // Telegram 研究群 → research Agent
+    {
+      agentId: "research",
+      match: {
+        channel: "telegram",
+        // TODO: 填入 Telegram research 群 ID
+      },
+    },
+    // 飞书运维群 → ops Agent
+    {
+      agentId: "ops",
+      match: {
+        channel: "feishu",
+        // TODO: 填入飞书 ops 群 ID
+      },
+    },
+    // 飞书行政群 → exec Agent
+    {
+      agentId: "exec",
+      match: {
+        channel: "feishu",
+        // TODO: 填入飞书 exec 群 ID
+      },
+    },
+  ],
+
+  // ====================================================================
+  // 通道（Channels）
+  // ====================================================================
+  channels: {
+    // Telegram
+    telegram: {
+      enabled: true,
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      dmPolicy: "pairing",  // 陌生人发消息需配对
+    },
+    // 飞书
+    feishu: {
+      enabled: true,
+      appId: "${FEISHU_APP_ID}",
+      appSecret: "${FEISHU_APP_SECRET}",
+      dmPolicy: "allowlist",
+      allowFrom: [],  // TODO: 填入你的飞书 user ID
+    },
+  },
+}
