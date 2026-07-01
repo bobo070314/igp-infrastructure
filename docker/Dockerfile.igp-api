@@ -1,0 +1,28 @@
+# IGP API Dockerfile
+# 纯 Python stdlib，零外部依赖
+FROM python:3.14-alpine
+
+LABEL org.opencontainers.image.source="https://github.com/your-org/igp"
+LABEL org.opencontainers.image.description="IGP International Group — HTTP API + Silicon Memory"
+LABEL org.opencontainers.image.version="2.1.0"
+
+# 安全：非 root 运行
+RUN addgroup -S igp && adduser -S igp -G igp
+
+WORKDIR /app
+
+# 只复制必要文件
+COPY --chown=igp:igp v6/api /app/api
+COPY --chown=igp:igp v6/silicon_memory /app/silicon_memory
+COPY --chown=igp:igp v6/department_registry.py /app/
+COPY --chown=igp:igp v6/scan_registry.py /app/
+
+# 创建数据目录
+RUN mkdir -p /app/data && chown -R igp:igp /app/data
+
+USER igp
+
+EXPOSE 8080
+
+# 启动 API
+CMD ["python", "-u", "-m", "api.igp_api"]

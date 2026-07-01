@@ -1,0 +1,17 @@
+# IGP 运维 Gateway Profile
+# 部署位置：阿里云 VPS（24/7 在线）
+openclaw:
+  gateway:
+    port: 19789
+    mode: remote
+  agents:
+    defaults:
+      sandbox: true
+      model: deepseek/deepseek-v3
+      workspace: ./workspace/ops
+    agents:
+      - id: ops
+        name: IGP 运维部
+        channel: telegram
+        telegram:
+          bot_token: ${OPS_TELEGRAM_BOT_TOKEN}

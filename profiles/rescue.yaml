@@ -1,0 +1,17 @@
+# IGP 救援 Gateway Profile
+# 独立 Telegram bot，独立端口，完全隔离
+openclaw:
+  gateway:
+    port: 20789
+    mode: local
+  agents:
+    defaults:
+      sandbox: true
+      model: deepseek/deepseek-v3
+      workspace: ./workspace/rescue
+    agents:
+      - id: rescue
+        name: IGP 救援部
+        channel: telegram
+        telegram:
+          bot_token: ${RESCUE_TELEGRAM_BOT_TOKEN}

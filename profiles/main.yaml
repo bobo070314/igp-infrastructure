@@ -1,0 +1,17 @@
+# IGP 主 Gateway Profile
+# 国际版端口 18791
+# 部署位置：本地 Windows
+openclaw:
+  gateway:
+    port: 18791
+    mode: local
+  agents:
+    defaults:
+      sandbox: false
+      model: deepseek/deepseek-v4-flash
+      workspace: ./workspace/main
+    agents:
+      - id: main
+        name: IGP 主Agent
+        channel: webchat
+        model: deepseek/deepseek-v4-flash
